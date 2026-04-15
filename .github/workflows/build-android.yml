@@ -1,0 +1,147 @@
+# ============================================================
+# MBANZA BET — Android APK & AAB Build Workflow
+# ============================================================
+# This workflow builds both a debug APK and a production AAB
+# using GitHub's free Ubuntu runners. No paid services needed.
+#
+# HOW TO USE:
+# 1. Push this repo to GitHub
+# 2. Go to Actions tab → "Build Android APK & AAB"
+# 3. Click "Run workflow" (or push to main branch)
+# 4. Wait ~15-20 minutes
+# 5. Download artifacts from the completed run
+# ============================================================
+
+name: Build Android APK & AAB
+
+on:
+  workflow_dispatch:  # Manual trigger from Actions tab
+  push:
+    branches: [main, master]
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'package.json'
+      - 'app.json'
+      - 'eas.json'
+
+jobs:
+  build-android:
+    name: Build Android Binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ---- CHECKOUT ----
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---- SETUP NODE ----
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      # ---- SETUP JAVA ----
+      - name: Setup Java 17 (required for Android build)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # ---- SETUP ANDROID SDK ----
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ---- INSTALL DEPENDENCIES ----
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # ---- SETUP EXPO ----
+      - name: Setup Expo CLI
+        run: npx expo install expo-dev-client 2>/dev/null || true
+
+      # ---- GENERATE NATIVE PROJECT ----
+      - name: Generate Android native project (prebuild)
+        run: npx expo prebuild --platform android --clean
+
+      # ---- BUILD DEBUG APK ----
+      - name: Build Debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      # ---- BUILD RELEASE AAB ----
+      - name: Build Release AAB (App Bundle)
+        working-directory: android
+        run: |
+          ./gradlew bundleRelease --no-daemon --stacktrace
+
+      # ---- FIND AND RENAME ARTIFACTS ----
+      - name: Locate built artifacts
+        id: artifacts
+        run: |
+          echo "=== APK Files ==="
+          find android -name "*.apk" -type f | head -10
+          echo "=== AAB Files ==="
+          find android -name "*.aab" -type f | head -10
+
+          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" -type f | head -1)
+          AAB_PATH=$(find android/app/build/outputs/bundle -name "*.aab" -type f | head -1)
+
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "aab_path=$AAB_PATH" >> $GITHUB_OUTPUT
+
+          # Copy with clean names
+          mkdir -p build-output
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" build-output/mbanza-bet-release.apk
+            echo "APK copied: mbanza-bet-release.apk"
+          fi
+          if [ -n "$AAB_PATH" ]; then
+            cp "$AAB_PATH" build-output/mbanza-bet-release.aab
+            echo "AAB copied: mbanza-bet-release.aab"
+          fi
+          ls -lh build-output/
+
+      # ---- UPLOAD APK ARTIFACT ----
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mbanza-bet-APK
+          path: build-output/mbanza-bet-release.apk
+          retention-days: 90
+          if-no-files-found: error
+
+      # ---- UPLOAD AAB ARTIFACT ----
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: mbanza-bet-AAB
+          path: build-output/mbanza-bet-release.aab
+          retention-days: 90
+          if-no-files-found: error
+
+      # ---- BUILD SUMMARY ----
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## MBANZA BET — Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f build-output/mbanza-bet-release.apk ]; then
+            APK_SIZE=$(du -h build-output/mbanza-bet-release.apk | cut -f1)
+            echo "- **APK**: mbanza-bet-release.apk ($APK_SIZE)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **APK**: Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f build-output/mbanza-bet-release.aab ]; then
+            AAB_SIZE=$(du -h build-output/mbanza-bet-release.aab | cut -f1)
+            echo "- **AAB**: mbanza-bet-release.aab ($AAB_SIZE)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **AAB**: Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download" >> $GITHUB_STEP_SUMMARY
+          echo "Scroll up to **Artifacts** section to download the APK and AAB files." >> $GITHUB_STEP_SUMMARY
