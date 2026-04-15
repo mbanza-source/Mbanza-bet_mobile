@@ -1,0 +1,53 @@
+# ============================================================
+# MBANZA BET — iOS Build Preparation Workflow
+# ============================================================
+# This workflow generates the Xcode project files needed
+# to build the iOS app on a Mac.
+#
+# NOTE: iOS apps can ONLY be compiled on macOS with Xcode.
+# This workflow prepares everything, but final compilation
+# requires a macOS runner (macos-latest) which uses more
+# GitHub Actions minutes.
+#
+# For FREE builds: Download the generated Xcode project
+# and build locally on your Mac.
+# ============================================================
+
+name: Prepare iOS Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare-ios:
+    name: Generate iOS Xcode Project
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Generate iOS native project
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Package iOS project
+        run: |
+          tar -czf mbanza-bet-ios-project.tar.gz ios/
+          ls -lh mbanza-bet-ios-project.tar.gz
+
+      - name: Upload iOS Project
+        uses: actions/upload-artifact@v4
+        with:
+          name: mbanza-bet-iOS-Project
+          path: mbanza-bet-ios-project.tar.gz
+          retention-days: 90
