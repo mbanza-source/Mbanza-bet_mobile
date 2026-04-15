@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "MBANZA BET",
+    "slug": "mbanza-bet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mbanzabet",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "com.mbanzabet.app",
+      "supportsTablet": true,
+      "buildNumber": "1.0.0"
+    },
+    "android": {
+      "package": "com.mbanzabet.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#09090B"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "owner": "mbanza",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f6962919-fbdb-446d-8e44-c6fc88d24375"
+      }
+    },
+    "newArchEnabled": true
+  }
+}
